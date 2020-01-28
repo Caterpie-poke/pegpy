@@ -9,6 +9,7 @@ import os
 import importlib
 # m = importlib.import_module('foo.some')  # -> 'module'
 import pegpy.tpeg as tpeg
+import pegpy.graphviz as gp
 
 
 istty = True
@@ -89,6 +90,7 @@ def parse_options(argv):
         'start': ['-s', '--start'],
         'parser': ['-p', '--parser'],
         'output': ['-o', '--output'],
+        'graph': ['-G', '--graph', '--Graph'],
         'verbose': ['--verbose'],
     }
 
@@ -96,8 +98,11 @@ def parse_options(argv):
         if a[0].startswith('-'):
             if len(a) > 1:
                 for key, list in options.items():
-                    for l in list:
-                        if a[0] == l:
+                    if a[0] in list:
+                        if key == 'graph':
+                            d[key] = True
+                            return a[1:]
+                        else:
                             d[key] = a[1]
                             return a[2:]
             d['inputs'].append(a)
@@ -106,7 +111,7 @@ def parse_options(argv):
             d['inputs'].append(a[0])
             return a[1:]
 
-    d = {'inputs': []}
+    d = {'inputs': [], 'graph': False}
     while len(argv) > 0:
         argv = parse_each(argv, d)
     d['logger'] = log
@@ -122,6 +127,7 @@ def usage():
     print("  -g | --grammar <file>      specify a grammar file")
     print("  -s | --start <NAME>        specify a starting rule")
     print("  -o | --output <file>       specify an output file")
+    print("  -G | --graph               generate a tree graph")
     print("  -D                         specify an optional value")
     print()
 
@@ -165,11 +171,17 @@ def parse(options, conv=None):
         try:
             while True:
                 s = readlines(bold('>>> '))
-                parser(s).dump()
+                t = parser(s)
+                t.dump()
+                if options['graph']:
+                    gp.gen_graph(t)
         except (EOFError, KeyboardInterrupt):
             pass
     elif len(inputs) == 1:
-        parser(read_inputs(inputs[0])).dump()
+        ast = parser(read_inputs(inputs[0]))
+        ast.dump()
+        if options['graph']:
+            gp.gen_graph(ast)
     else:
         for file in options['inputs']:
             st = time.time()
